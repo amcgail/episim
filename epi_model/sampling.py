@@ -106,8 +106,8 @@ def friendHighDegRandTopN(sim, vaccinateN=100, N=5):
             #print('no choices, skipped')
             continue
         
-        p2 = sorted(p2s, key=lambda x:deg[x])[-1]
-        chosen.append(p2)
+        p2 = sorted(p2s, key=lambda x:deg[x])[-N:]
+        chosen.append( choice(p2) )
      
     return chosen
     #sim.tnet.infect(choice([x for x in range(sim.tnet.Nnodes) if not sim.tnet.vaccinated[x]]))
