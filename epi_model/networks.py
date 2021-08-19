@@ -1,6 +1,5 @@
 from .common_imports import *
 
-
 class weightedNetwork:
     
     def __init__(self, nodes, edges):
@@ -111,14 +110,14 @@ class temporalNetwork:
         if dataset == 'high school2':
 
             import pandas as pd
-            edgelist = pd.read_csv("../high school 2/full.txt", sep="\t", header=None)
+            edgelist = pd.read_csv( str(Path(DATA_DIR, "high school 2/full.txt")), sep="\t", header=None)
             edgelist = np.array(edgelist, dtype=int)
             edgelist = edgelist[:,:3]
 
             time_start = dt.datetime(2010,1,14, 6,0,0).timestamp()
 
             
-            roles = pd.read_csv("../high school 2/roles.txt", sep="\t", header=None)
+            roles = pd.read_csv(str(Path(DATA_DIR, "high school 2/roles.txt")), sep="\t", header=None)
             role_map = {
                 x[0]: x[1]
                 for i,x in roles.iterrows()
@@ -132,7 +131,7 @@ class temporalNetwork:
         elif dataset == 'high school':
 
             import pandas as pd
-            edgelist = pd.read_csv("../high school/High-School_data_2013.csv", sep=" ", header=None)
+            edgelist = pd.read_csv(str(Path(DATA_DIR, "high school/High-School_data_2013.csv")), sep=" ", header=None)
 
             node_ids = sorted(set(edgelist[1]).union(set(edgelist[2])))
 
@@ -159,12 +158,12 @@ class temporalNetwork:
         elif dataset == 'workplace':
             
             import pandas as pd
-            edgelist = pd.read_csv("../data/contacts in the workplace/tij_InVS.DAT", sep=" ", header=None)
+            edgelist = pd.read_csv(str(Path(DATA_DIR, "contacts in the workplace/tij_InVS.DAT")), sep=" ", header=None)
             edgelist = np.array(edgelist)
 
             time_start = dt.datetime(2013,6,24).timestamp()
 
-            depts = pd.read_csv("../data/contacts in the workplace/metadata_InVS13.TXT", sep="\t", header=None)
+            depts = pd.read_csv(str(Path(DATA_DIR, "contacts in the workplace/metadata_InVS13.TXT")), sep="\t", header=None)
             
             node_attr = {
                 'department': {
@@ -176,12 +175,12 @@ class temporalNetwork:
         elif dataset == 'workplace2':
             
             import pandas as pd
-            edgelist = pd.read_csv("../contacts in the workplace 2/tij_InVS15.DAT", sep=" ", header=None)
+            edgelist = pd.read_csv(str(Path(DATA_DIR, "contacts in the workplace 2/tij_InVS15.DAT")), sep=" ", header=None)
             edgelist = np.array(edgelist)
 
             time_start = dt.datetime(2014,6,24, 9,0,0).timestamp() # I ACTUALLY CANT FIND THIS ONE...
 
-            depts = pd.read_csv("../1 data/contacts in the workplace 2/metadata_InVS15.TXT", sep="\t", header=None)
+            depts = pd.read_csv(str(Path(DATA_DIR, "contacts in the workplace 2/metadata_InVS15.TXT")), sep="\t", header=None)
 
             node_ids = set(edgelist[:,1]).union(set(edgelist[:,2]))
             
@@ -196,12 +195,12 @@ class temporalNetwork:
 
         elif dataset == 'primary school':
             import pandas as pd
-            edgelist = pd.read_csv("../primary school/primaryschool.csv", sep="\t", header=None)
+            edgelist = pd.read_csv(str(Path(DATA_DIR, "primary school/primaryschool.csv")), sep="\t", header=None)
             edgelist = np.array(edgelist)
 
             time_start = dt.datetime(2009,10,1, 7,0,0).timestamp()
 
-            depts = pd.read_csv("../primary school/metadata_primaryschool.txt", sep="\t", header=None)
+            depts = pd.read_csv(str(Path(DATA_DIR, "primary school/metadata_primaryschool.txt")), sep="\t", header=None)
             
             node_attr = {
                 'class': {
@@ -216,7 +215,7 @@ class temporalNetwork:
         
         elif dataset == 'gillespie_sample':
             import pandas as pd
-            edgelist = pd.read_csv("../data/temporal_gillespie_sample.txt", sep="\t", header=None)
+            edgelist = pd.read_csv(str(Path(DATA_DIR, "temporal_gillespie_sample.txt")), sep="\t", header=None)
             edgelist = np.array(edgelist)
 
             time_start = dt.datetime(2020,1,1).timestamp()

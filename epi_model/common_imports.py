@@ -12,3 +12,5 @@ from collections import defaultdict
 from random import sample, choice
 import datetime as dt
 from IPython.display import Markdown, HTML, display
+
+DATA_DIR = Path(__file__).parent.parent.joinpath('data')
