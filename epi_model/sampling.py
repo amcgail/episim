@@ -84,6 +84,35 @@ def friendHighDegChain(sim, vaccinateN=100):
     #sim.tnet.infect(choice([x for x in range(sim.tnet.Nnodes) if not sim.tnet.vaccinated[x]]))
     #sim.tnet.run()
 
+def friendHighDegRandTopN(sim, vaccinateN=100, N=5):
+    
+    start = sample(range(sim.tnet.Nnodes), vaccinateN)
+    deg = nx.degree(sim.tnet.G)
+    
+    chosen = []
+    
+    ii = 0
+    while len(chosen) < vaccinateN:
+        ii += 1
+        if ii > 100000:
+            raise Exception("Excessive recursion...")
+    
+        p1 = choice(range(sim.tnet.Nnodes))
+        
+        p2s = list(nx.neighbors(sim.tnet.G,p1))
+        p2s = [x for x in p2s if x not in chosen]
+        
+        if not len(p2s):
+            #print('no choices, skipped')
+            continue
+        
+        p2 = sorted(p2s, key=lambda x:deg[x])[-1]
+        chosen.append(p2)
+     
+    return chosen
+    #sim.tnet.infect(choice([x for x in range(sim.tnet.Nnodes) if not sim.tnet.vaccinated[x]]))
+    #sim.tnet.run()
+    
 def friendHighDeg(sim, vaccinateN=100):
     #a = epiSim(edgelist, alpha=alpha, beta=beta)
     start = sample(range(sim.tnet.Nnodes), vaccinateN)
