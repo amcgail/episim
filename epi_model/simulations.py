@@ -156,7 +156,8 @@ class SEIR_daily:
                         self.state_change(pers, 'inf');
                         del self.e2i_T[ pers ];
                 else:
-                    if random() < 1 - np.exp( -self.e2i * time_elapsing ):
+                    #if random() < 1 - np.exp( -self.e2i * time_elapsing ):
+                    if random() < 1 - np.power(1-self.e2i, time_elapsing):
                         self.state_change(pers, 'inf')
                 
                         
