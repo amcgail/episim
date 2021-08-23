@@ -1,0 +1,4 @@
+**/.ipynb_checkpoints/*
+simulation_results/*
+**/__pycache__/**
+*.pyc
