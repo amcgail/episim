@@ -5,7 +5,9 @@ The module includes my quite inefficient code for simulating stochastic networke
 
 ## Guide to the files
 
-+ `epimodel/sampling.py`
++ `epimodel/sampling.py` Contains all the algorithms I use in this study for sampling from a network for vaccination.
++ `simulation_helper.py` Contains some helpers: the default argsets (strat + R0_mean + VACCINATE_P + INITIAL_INFECT) and a clever iterator over limited combinations of arguments to the simulation,
++ `simulation_manager.py` All code for interfacing with SEIRS+: the simulation_manager class, which includes network generation, simulation, results loading and saving, and summarization.
 + `1a*.ipynb` Runs the central argument-sets on three contexts: hs1, hs2, and the synthetic network. 
   These are separated into separate notebooks, but are essentially identical code, except for the bit that initializes the network.
 + `1b*.ipynb` Extends analyses to `sampling.friendHighDegNormalErr` and `sampling.friendHighDegRandTopN` at various levels of error.
@@ -18,3 +20,5 @@ The module includes my quite inefficient code for simulating stochastic networke
 Ideally you should be able to just run these notebooks, although there are a few things to keep in mind:
 
 + You should have at least 16GB of RAM, and a lot of time. The `synthset 3000` simulation maxed out my desktop for 24h.
++ The simulations are stochastic, so the results you get will be slightly different from those reported in the paper.
++ My specific results are not included in this repository, because they are quite large. If you would like access, send an email to am2873@cornell.edu
