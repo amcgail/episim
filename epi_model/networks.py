@@ -1,3 +1,4 @@
+from typing import Dict
 from .common_imports import *
 
 class weightedNetwork:
@@ -5,16 +6,54 @@ class weightedNetwork:
     def __init__(self, nodes, edges):
         self.nodes = nodes
         self.edges = edges # (F, T, w)
+        self.edgelist = edges # some compatibility with tnets
         
         self.ego_edges = defaultdict(dict)
         for f,t,w in self.edges:
             self.ego_edges[f][t] = w
             self.ego_edges[t][f] = w
+
+        self.Nnodes = len(self.nodes)
+        self.days = [dt.datetime.now().date()]
+
+        self.mindayT = [0]
+        self.maxdayT = [int( 0.25 * 3600*24/20 )]
+        self.day_breaks = [0, 3600*24/20]
+
+        G = nx.Graph()
+        G.add_weighted_edges_from([
+            [f,t,w]
+            for f,t,w in self.edges
+        ])
+        self.G = G
             
+
+class unweightedNetwork(weightedNetwork):
+    
+    def __init__(self, nodes, edges, weight):
+        return super().__init__(
+            nodes,
+            [[f,t,weight] for f,t in edges]
+        )
+
+    @classmethod
+    def from_csv(cls, fn, weight):
+
+        from csv import DictReader
+        
+        with open(fn, 'r', encoding='utf8') as inf:
+            rs = list(DictReader(inf))
+
+        ks = sorted(rs[0].keys())
+        assert len(ks) == 2 # must have 2 columns
+
+        edges = [ [int(r[ks[0]]),int(r[ks[1]])] for r in rs ]
+        nodes = sorted(set( [r[0] for r in edges] ).union(set( [r[1] for r in edges] )))
+
+        return unweightedNetwork( nodes, edges, weight )
 
 
 class temporalNetwork:
-
 
     def range(self, day_start, day_end):
 
@@ -103,6 +142,8 @@ class temporalNetwork:
 
         self.execute_preprocessing()
         self.weighted = self.to_weighted()
+
+        self.nodes = list(self.G.nodes)
     
     @classmethod
     def load(cls, dataset):
@@ -140,8 +181,9 @@ class temporalNetwork:
                 for c in set(edgelist[3])
             }
 
+            #node_ids.index(p)
             class_map = {
-                node_ids.index(p): c
+                p: c
                 for c in classes
                 for p in classes[c]
             }
@@ -167,7 +209,7 @@ class temporalNetwork:
             
             node_attr = {
                 'department': {
-                    node_transfer(x[0]): x[1]
+                    x[0]: x[1]
                     for i,x in depts.iterrows()
                 }
             }
@@ -186,7 +228,7 @@ class temporalNetwork:
             
             node_attr = {
                 'department': {
-                    node_transfer(x[0]): x[1]
+                    x[0]: x[1]
                     for i,x in depts.iterrows()
                     if x[0] in node_ids
                 }
@@ -204,11 +246,11 @@ class temporalNetwork:
             
             node_attr = {
                 'class': {
-                    node_transfer(x[0]): x[1]
+                    x[0]: x[1]
                     for i,x in depts.iterrows()
                 },
                 'gender': {
-                    node_transfer(x[0]): x[2]
+                    x[0]: x[2]
                     for i,x in depts.iterrows()
                 },
             }
@@ -236,10 +278,10 @@ class temporalNetwork:
         
         self.node_ids = sorted(set(self.edgelist[:,1]).union(self.edgelist[:,2]))
 
-        node_transfer = lambda x: self.node_ids.index(x)
+        #node_transfer = lambda x: self.node_ids.index(x)
 
-        self.edgelist[:,1] = np.array(list(map(node_transfer, self.edgelist[:,1])))
-        self.edgelist[:,2] = np.array(list(map(node_transfer, self.edgelist[:,2])))
+        #self.edgelist[:,1] = np.array(list(map(node_transfer, self.edgelist[:,1])))
+        #self.edgelist[:,2] = np.array(list(map(node_transfer, self.edgelist[:,2])))
 
         # normalize the times
         orig_times = sorted(set(self.edgelist[:,0]))

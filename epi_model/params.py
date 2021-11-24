@@ -15,8 +15,45 @@ covid_estimate = {
 }
 
 
-
 def daily_to_momentary( net, param ):
+    """
+    Only processes on the first day...
+    """
+
+    raw_contact_amt = Counter([(x[1],x[2]) for x in net.edgelist if x[0] < net.day_breaks[1]])
+    n_contacts = Counter([x[1] for x,c in raw_contact_amt.items() if c >= 15*60 / 20])
+    contacts_set = defaultdict(set)
+    for x,c in raw_contact_amt.items():
+        if c >= 15*60 / 20:
+            contacts_set[x[0]].add(x[1])
+
+    #contact_amts = [x for x in contact_count.values() if x >= 15*60 / 20] # discard < 15 minutes
+
+    def mean_inf_prob( p ):
+        parts = []
+        for i,di in n_contacts.items():
+            Ns = contacts_set[i]
+            parts.append( np.average( [
+                1 - np.power(1-p, raw_contact_amt[(i,j)])
+                for j in Ns
+            ] ) )
+        
+        return np.mean(parts)
+
+    from scipy.optimize import fsolve
+    def to_solve( target ):
+        def woop(p):
+            return mean_inf_prob( p ) - target
+        return woop
+
+    guess = 5e-6
+    sol = fsolve(to_solve(param), guess)
+    assert(sol.shape[0]==1)
+
+    return sol[0]
+
+
+def daily_to_momentary_old_mistake( net, param ):
 
     contact_count = Counter([x[1] for x in net.edgelist if x[0] < net.day_breaks[1]])
     contact_amts = [x for x in contact_count.values() if x >= 15*60 / 20] # discard < 15 minutes

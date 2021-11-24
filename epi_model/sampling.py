@@ -1,3 +1,4 @@
+from epi_model.networks import temporalNetwork, weightedNetwork
 from .common_imports import *
 
 __all__ = ['sampling_strats']
@@ -15,7 +16,7 @@ class early_infect_analysis:
             
             if (i+1)%(NN//10)==0:
                 print(i,"/",NN)
-            sim.state_change(choice(range(sim.tnet.Nnodes)), 'inf')
+            sim.state_change(choice(list(sim.tnet.G.nodes)), 'inf')
             sim.run(20)
             
         all_infect_t = inf_times = [
@@ -27,18 +28,18 @@ class early_infect_analysis:
         
         self.means = {
             n: np.mean([t for nn,t in all_infect_t if nn==n])
-            for n in range(sim.tnet.Nnodes)
+            for n in sim.tnet.G.nodes
         }
         self.counts = {
             n: np.sum([1 for nn,t in all_infect_t if nn==n])
-            for n in range(sim.tnet.Nnodes)
+            for n in sim.tnet.G.nodes
         }
 
 def early_infect(sim, vaccinateN=100):
     if not hasattr(sim, 'early_infect'):
         sim.early_infect = early_infect_analysis(sim)
     
-    top100a = sorted(range(sim.tnet.Nnodes), key=lambda i:-sim.early_infect.counts[i])[:vaccinateN*2]
+    top100a = sorted(sim.tnet.G.nodes, key=lambda i:-sim.early_infect.counts[i])[:vaccinateN*2]
     top100b = sorted(top100a, key=lambda i:sim.early_infect.means[i])
     tovaccinate = top100b[:vaccinateN]
 
@@ -51,15 +52,15 @@ def none(*args, **kwargs):
 
 def rand(sim, vaccinateN=100):
     from random import choice, sample
-    return sample(range(sim.tnet.Nnodes), vaccinateN)
+    return sample(sim.tnet.G.nodes, vaccinateN)
 
 def friendHighDegChain(sim, vaccinateN=100):
     #a = epiSim(edgelist, alpha=alpha, beta=beta)
-    start = sample(range(sim.tnet.Nnodes), vaccinateN)
+    start = sample(sim.tnet.G.nodes, vaccinateN)
     deg = nx.degree(sim.tnet.G)
     
     chosen = []
-    current = choice(range(sim.tnet.Nnodes))
+    current = choice(list(sim.tnet.G.nodes))
     
     ii = 0
     while len(chosen) < vaccinateN:
@@ -76,17 +77,50 @@ def friendHighDegChain(sim, vaccinateN=100):
         
         if not len(p2s):
             #print('no choices, skipped')
-            current = choice([i for i in range(sim.tnet.Nnodes) if i not in chosen])
+            current = choice([i for i in sim.tnet.G.nodes if i not in chosen])
         else:
             current = sorted(p2s, key=lambda x:deg[x])[-1]
      
     return chosen
-    #sim.tnet.infect(choice([x for x in range(sim.tnet.Nnodes) if not sim.tnet.vaccinated[x]]))
+    #sim.tnet.infect(choice([x for x in sim.tnet.G.nodes if not sim.tnet.vaccinated[x]]))
     #sim.tnet.run()
 
+def friendHighDegNormalErr(sim, vaccinateN=100, sigma=10):
+    
+    start = sample(sim.tnet.G.nodes, vaccinateN)
+    deg = nx.degree(sim.tnet.G)
+    deg = {
+        k: v+np.random.normal(0, sigma)
+        for k,v in dict(deg).items()
+    }
+    
+    chosen = []
+    
+    ii = 0
+    while len(chosen) < vaccinateN:
+        ii += 1
+        if ii > 100000:
+            raise Exception("Excessive recursion...")
+    
+        p1 = choice(list(sim.tnet.G.nodes))
+        
+        p2s = list(nx.neighbors(sim.tnet.G,p1))
+        p2s = [x for x in p2s if x not in chosen]
+        
+        if not len(p2s):
+            #print('no choices, skipped')
+            continue
+        
+        p2 = sorted(p2s, key=lambda x:deg[x])[-1]
+        chosen.append( p2 )
+     
+    return chosen
+    #sim.tnet.infect(choice([x for x in sim.tnet.G.nodes if not sim.tnet.vaccinated[x]]))
+    #sim.tnet.run()
+    
 def friendHighDegRandTopN(sim, vaccinateN=100, N=5):
     
-    start = sample(range(sim.tnet.Nnodes), vaccinateN)
+    start = sample(sim.tnet.G.nodes, vaccinateN)
     deg = nx.degree(sim.tnet.G)
     
     chosen = []
@@ -97,7 +131,7 @@ def friendHighDegRandTopN(sim, vaccinateN=100, N=5):
         if ii > 100000:
             raise Exception("Excessive recursion...")
     
-        p1 = choice(range(sim.tnet.Nnodes))
+        p1 = choice(list(sim.tnet.G.nodes))
         
         p2s = list(nx.neighbors(sim.tnet.G,p1))
         p2s = [x for x in p2s if x not in chosen]
@@ -110,12 +144,12 @@ def friendHighDegRandTopN(sim, vaccinateN=100, N=5):
         chosen.append( choice(p2) )
      
     return chosen
-    #sim.tnet.infect(choice([x for x in range(sim.tnet.Nnodes) if not sim.tnet.vaccinated[x]]))
+    #sim.tnet.infect(choice([x for x in sim.tnet.G.nodes if not sim.tnet.vaccinated[x]]))
     #sim.tnet.run()
     
 def friendHighDeg(sim, vaccinateN=100):
     #a = epiSim(edgelist, alpha=alpha, beta=beta)
-    start = sample(range(sim.tnet.Nnodes), vaccinateN)
+    start = sample(sim.tnet.G.nodes, vaccinateN)
     deg = nx.degree(sim.tnet.G)
     
     chosen = []
@@ -126,7 +160,7 @@ def friendHighDeg(sim, vaccinateN=100):
         if ii > 100000:
             raise Exception("Excessive recursion...")
     
-        p1 = choice(range(sim.tnet.Nnodes))
+        p1 = choice(list(sim.tnet.G.nodes))
         
         p2s = list(nx.neighbors(sim.tnet.G,p1))
         p2s = [x for x in p2s if x not in chosen]
@@ -139,18 +173,25 @@ def friendHighDeg(sim, vaccinateN=100):
         chosen.append(p2)
      
     return chosen
-    #sim.tnet.infect(choice([x for x in range(sim.tnet.Nnodes) if not sim.tnet.vaccinated[x]]))
+    #sim.tnet.infect(choice([x for x in sim.tnet.G.nodes if not sim.tnet.vaccinated[x]]))
     #sim.tnet.run()
 
 def friendHighDegCloseChain(sim, vaccinateN=100, CUTOFF=0.9):
-    cutoff = np.quantile([x[2] for x in sim.tnet.weighted.edges], CUTOFF)
+    if isinstance(sim.tnet, temporalNetwork):
+        wG = sim.tnet.weighted
+    elif isinstance(sim.tnet, weightedNetwork):
+        wG = sim.tnet
+    else:
+        raise Exception("not sure...")
+
+    cutoff = np.quantile([x[2] for x in wG.edges], CUTOFF)
     deg = {
-        n: len([_ for x,w in sim.tnet.weighted.ego_edges[n].items() if w >= CUTOFF])
-        for n in range(sim.tnet.Nnodes)
+        n: len([1 for x,w in wG.ego_edges[n].items() if w >= CUTOFF])
+        for n in sim.tnet.G.nodes
     }
     
     chosen = []
-    current = choice(range(sim.tnet.Nnodes))
+    current = choice(list(sim.tnet.G.nodes))
     
     ii = 0
     while len(chosen) < vaccinateN:
@@ -161,23 +202,30 @@ def friendHighDegCloseChain(sim, vaccinateN=100, CUTOFF=0.9):
             raise Exception("Excessive recursion...")
             
         p2s = list(nx.neighbors(sim.tnet.G,current))
-        p2s = [x for x in p2s if x not in chosen if sim.tnet.weighted.ego_edges[p1][x] >= cutoff]
+        p2s = [x for x in p2s if x not in chosen if wG.ego_edges[current][x] >= cutoff]
         
         if not len(p2s):
-            current = choice([i for i in range(sim.tnet.Nnodes) if i not in chosen])
+            current = choice([i for i in sim.tnet.G.nodes if i not in chosen])
         else:
             current = sorted(p2s, key=lambda x:deg[x])[-1]
      
     return chosen
-    #sim.tnet.infect(choice([x for x in range(sim.tnet.Nnodes) if not sim.tnet.vaccinated[x]]))
+    #sim.tnet.infect(choice([x for x in sim.tnet.G.nodes if not sim.tnet.vaccinated[x]]))
     #sim.tnet.run()
 
 
 def friendHighDegClose(sim, vaccinateN=100, CUTOFF=0.9):
-    cutoff = np.quantile([x[2] for x in sim.tnet.weighted.edges], CUTOFF)
+    if isinstance(sim.tnet, temporalNetwork):
+        wG = sim.tnet.weighted
+    elif isinstance(sim.tnet, weightedNetwork):
+        wG = sim.tnet
+    else:
+        raise Exception("not sure...")
+
+    cutoff = np.quantile([x[2] for x in wG.edges], CUTOFF)
     deg = {
-        n: len([_ for x,w in sim.tnet.weighted.ego_edges[n].items() if w >= CUTOFF])
-        for n in range(sim.tnet.Nnodes)
+        n: len([_ for x,w in wG.ego_edges[n].items() if w >= CUTOFF])
+        for n in sim.tnet.G.nodes
     }
     
     chosen = []
@@ -188,10 +236,10 @@ def friendHighDegClose(sim, vaccinateN=100, CUTOFF=0.9):
         if ii > 100000:
             raise Exception("Excessive recursion...")
     
-        p1 = choice(range(sim.tnet.Nnodes))
+        p1 = choice(list(sim.tnet.G.nodes))
         
         p2s = list(nx.neighbors(sim.tnet.G,p1))
-        p2s = [x for x in p2s if x not in chosen if sim.tnet.weighted.ego_edges[p1][x] >= cutoff]
+        p2s = [x for x in p2s if x not in chosen if wG.ego_edges[p1][x] >= cutoff]
         
         if not len(p2s):
             #print('no choices, skipped')
@@ -201,12 +249,12 @@ def friendHighDegClose(sim, vaccinateN=100, CUTOFF=0.9):
         chosen.append(p2)
      
     return chosen
-    #sim.tnet.infect(choice([x for x in range(sim.tnet.Nnodes) if not sim.tnet.vaccinated[x]]))
+    #sim.tnet.infect(choice([x for x in sim.tnet.G.nodes if not sim.tnet.vaccinated[x]]))
     #sim.tnet.run()
     
 def targeted(sim, vaccinateN=100):
     deg = nx.degree(sim.tnet.G)
-    return sorted(range(sim.tnet.Nnodes), key=lambda x: -deg[x])[:vaccinateN]
+    return sorted(sim.tnet.G.nodes, key=lambda x: -deg[x])[:vaccinateN]
 
 def friend(sim, vaccinateN=100):
     chosen = []
@@ -216,7 +264,7 @@ def friend(sim, vaccinateN=100):
         if ii > 100000:
             raise Exception("Excessive recursion...")
             
-        start = choice(range(sim.tnet.Nnodes))
+        start = choice(list(sim.tnet.G.nodes))
         
         p2s = list(nx.neighbors(sim.tnet.G,start))
         p2s = [x for x in p2s if x not in chosen]
@@ -233,7 +281,7 @@ def friendWeightedChain(sim, vaccinateN=100):
     chosen = []
     ii = 0
 
-    current = choice(range(sim.tnet.Nnodes))
+    current = choice(list(sim.tnet.G.nodes))
 
     while len(chosen) < vaccinateN:
         ii += 1
@@ -248,7 +296,7 @@ def friendWeightedChain(sim, vaccinateN=100):
         p2w = np.array([ sim.tnet.weighted.ego_edges[ current ][ p ] for p in p2s ])
         
         if not len(p2s):
-            choice([i for i in range(sim.tnet.Nnodes) if i not in chosen])
+            choice([i for i in sim.tnet.G.nodes if i not in chosen])
         else:
             p2 = np.choice(p2s, p=p2w)
         
@@ -262,7 +310,7 @@ def friendWeighted(sim, vaccinateN=100):
         if ii > 100000:
             raise Exception("Excessive recursion...")
             
-        start = choice(range(sim.tnet.Nnodes))
+        start = choice(list(sim.tnet.G.nodes))
         
         p2s = list(nx.neighbors(sim.tnet.G,start))
         p2s = [x for x in p2s if x not in chosen]
@@ -282,7 +330,7 @@ def friendChain(sim, vaccinateN=100):
     chosen = []
     ii = 0
 
-    current = choice(range(sim.tnet.Nnodes))
+    current = choice(list(sim.tnet.G.nodes))
 
     while len(chosen) < vaccinateN:
         chosen.append(current)
@@ -296,7 +344,7 @@ def friendChain(sim, vaccinateN=100):
         
         if not len(p2s):
             # choose a rando, if there are no options...
-            p2 = choice([i for i in range(sim.tnet.Nnodes) if not i not in chosen])
+            p2 = choice([i for i in sim.tnet.G.nodes if not i not in chosen])
         else:
             p2 = choice(p2s)
 
@@ -305,10 +353,17 @@ def friendChain(sim, vaccinateN=100):
     return chosen
 
 def friendCloseChain(sim, vaccinateN=100, CUTOFF=0.9):
-    cutoff = np.quantile([x[2] for x in sim.tnet.weighted.edges], CUTOFF)
+    if isinstance(sim.tnet, temporalNetwork):
+        wG = sim.tnet.weighted
+    elif isinstance(sim.tnet, weightedNetwork):
+        wG = sim.tnet
+    else:
+        raise Exception("not sure...")
+
+    cutoff = np.quantile([x[2] for x in wG.edges], CUTOFF)
     
     chosen = []
-    current = choice(range(sim.tnet.Nnodes))
+    current = choice(list(sim.tnet.G.nodes))
     ii = 0
     while len(chosen) < vaccinateN:
         ii += 1
@@ -318,17 +373,24 @@ def friendCloseChain(sim, vaccinateN=100, CUTOFF=0.9):
         chosen.append(current)
                     
         p2s = list(nx.neighbors(sim.tnet.G,current))
-        p2s = [x for x in p2s if x not in chosen and sim.tnet.weighted.ego_edges[current][x] >= cutoff]
+        p2s = [x for x in p2s if x not in chosen and wG.ego_edges[current][x] >= cutoff]
         
         if not len(p2s):
-            current = choice([i for i in range(sim.tnet.Nnodes) if i not in chosen])
+            current = choice([i for i in sim.tnet.G.nodes if i not in chosen])
         else:
             current = choice(p2s)
         
     return chosen
 
 def friendClose(sim, vaccinateN=100, CUTOFF=0.9):
-    cutoff = np.quantile([x[2] for x in sim.tnet.weighted.edges], CUTOFF)
+    if isinstance(sim.tnet, temporalNetwork):
+        wG = sim.tnet.weighted
+    elif isinstance(sim.tnet, weightedNetwork):
+        wG = sim.tnet
+    else:
+        raise Exception("not sure...")
+
+    cutoff = np.quantile([x[2] for x in wG.edges], CUTOFF)
     
     chosen = []
     ii = 0
@@ -337,10 +399,10 @@ def friendClose(sim, vaccinateN=100, CUTOFF=0.9):
         if ii > 100000:
             raise Exception("Excessive recursion...")
             
-        start = choice(range(sim.tnet.Nnodes))
+        start = choice(list(sim.tnet.G.nodes))
         
         p2s = list(nx.neighbors(sim.tnet.G,start))
-        p2s = [x for x in p2s if x not in chosen and sim.tnet.weighted.ego_edges[start][x] >= cutoff]
+        p2s = [x for x in p2s if x not in chosen and wG.ego_edges[start][x] >= cutoff]
         
         if not len(p2s):
             continue
@@ -385,7 +447,7 @@ def contact(sim, vaccinateN=100): # needs updated?
         return samp2
 
     from random import sample
-    tovaccinate = take_step(sample(range(sim.tnet.Nnodes), vaccinateN))    
+    tovaccinate = take_step(sample(sim.tnet.G.nodes, vaccinateN))    
 
     return tovaccinate
     
@@ -451,7 +513,7 @@ def contact_survey(sim, vaccinateN=100, forward_N=50):
     from random import sample
     tovaccinate = []
     while len(tovaccinate):
-        tovaccinate = take_step(sample(range(sim.tnet.Nnodes), vaccinateN))
+        tovaccinate = take_step(sample(sim.tnet.G.nodes, vaccinateN))
 
     return tovaccinate
 
@@ -653,7 +715,7 @@ def target_between_classes(sim, vaccinateN=100):
     CUTOFF = 15 * 60 / 20
 
     wts = {}
-    for node in range(sim.tnet.Nnodes):
+    for node in sim.tnet.G.nodes:
         wts[node] = len([ 1 for x, c in edge_w.items() if c>=CUTOFF and x[0]==node])
 
     to_vacc = sorted( wts, key=lambda x: -wts[x] )[:vaccinateN]
@@ -661,7 +723,7 @@ def target_between_classes(sim, vaccinateN=100):
 
 def local_betweenness(sim, vaccinateN=100):
     wts = {}
-    for n in range(sim.tnet.Nnodes):
+    for n in sim.tnet.G.nodes:
         subg = nx.subgraph( sim.tnet.G, nx.neighbors(sim.tnet.G, n) )
         nn = len(subg.nodes)
         pair_diff = nn*(nn-1) - len(subg.edges)
@@ -674,7 +736,7 @@ def local_betweenness(sim, vaccinateN=100):
 
 def nominate_local_betweenness(sim, vaccinateN=100):
     wts = {}
-    for n in range(sim.tnet.Nnodes):
+    for n in sim.tnet.G.nodes:
         subg = nx.subgraph( sim.tnet.G, nx.neighbors(sim.tnet.G, n) )
         nn = len(subg.nodes)
         pair_diff = nn*(nn-1) - len(subg.edges)
@@ -690,7 +752,7 @@ def nominate_local_betweenness(sim, vaccinateN=100):
         if ii > 100000:
             raise Exception("Excessive recursion...")
     
-        p1 = choice(range(sim.tnet.Nnodes))
+        p1 = choice(list(sim.tnet.G.nodes))
         
         p2s = list(nx.neighbors(sim.tnet.G,p1))
         p2s = [x for x in p2s if x not in chosen]
