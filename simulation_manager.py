@@ -35,6 +35,25 @@ def get_tnet(name):
 
     return _tnets[name]
 
+def bootstrap(inf1, inf2, nboots=1000, CI=0.05):
+    n1 = inf1['ninf']
+    n2 = inf2['ninf']
+    
+    #assert( inf1['init_sus'] == inf2['init_sus'] ) # this is a simplifying assumption I use throughout... same sized simulations, so ratio of effectiveness == ratio of susceptible infected
+    # lol literally can't make this assumption if I'm comparing any strategy with doing nothing!!
+    
+    samps1 = np.random.choice(n1, size=(nboots, n1.shape[0]), replace=True)
+    samps2 = np.random.choice(n2, size=(nboots, n2.shape[0]), replace=True)
+    
+    means1 = samps1.mean(axis=1)
+    means2 = samps2.mean(axis=1)
+    
+    rats = (means1/inf1['init_sus']) / (means2/inf2['init_sus'])
+    meanrat = rats.mean()
+    lowrat = np.quantile(rats, CI/2)
+    highrat = np.quantile(rats, 1-CI/2)
+    
+    return lowrat, meanrat, highrat
 
 class simulation_manager:
 
@@ -54,7 +73,7 @@ class simulation_manager:
     def generate_params(self, verbose=False,
         R0_mean=2.5, R0_coeffvar = 0.2,
         presymptomaticPeriod_mean = 2.2, presymptomaticPeriod_coeffvar = 0.5,
-        latentPeriod_mean = 3.0, latentPeriod_coeffvar = 0.6,
+        latentPeriod_mean = 5.5, latentPeriod_coeffvar = 0.6,
         symptomaticPeriod_mean = 4.0, symptomaticPeriod_coeffvar = 0.4,
         onsetToHospitalizationPeriod_mean = 1e6, onsetToHospitalizationPeriod_coeffvar = 0.45,
         hospitalizationToDischargePeriod_mean = 1e6, hospitalizationToDischargePeriod_coeffvar = 0.45,
@@ -174,7 +193,7 @@ class simulation_manager:
     def generate_net_params(self, verbose=False, 
         R0_mean=2.5, R0_coeffvar = 0.2,
         presymptomaticPeriod_mean = 2.2, presymptomaticPeriod_coeffvar = 0.5,
-        latentPeriod_mean = 3.0, latentPeriod_coeffvar = 0.6,
+        latentPeriod_mean = 5.5, latentPeriod_coeffvar = 0.6,
         symptomaticPeriod_mean = 4.0, symptomaticPeriod_coeffvar = 0.4,
         onsetToHospitalizationPeriod_mean = 11.0, onsetToHospitalizationPeriod_coeffvar = 0.45,
         hospitalizationToDischargePeriod_mean = 11.0, hospitalizationToDischargePeriod_coeffvar = 0.45,
@@ -294,7 +313,7 @@ class simulation_manager:
             'q':0,
             'beta_Q':BETA_Q,
             'isolation_time':14,
-            'initI_asym':0 # note that I'm putting them into the asymptomatic infectious group, to be similar to the other...
+            'initI_asym':0, # note that I'm putting them into the asymptomatic infectious group, to be similar to the other...
         }
 
         return base_args
@@ -453,6 +472,11 @@ class simulation_manager:
             sim = simulations.SEIR_daily(self.tnet, p)
             n2id = {n:i for i,n in enumerate(self.tnet.nodes)}
             
+            # figure out what the default alpha should be...
+            vaccinate_alpha = 0
+            if 'vaccinate_alpha' in argset:
+                vaccinate_alpha = argset['vaccinate_alpha']
+            
             #if (argseti+1)%int(len(argsets)/100) == 0:
             first_it = True
 
@@ -461,7 +485,7 @@ class simulation_manager:
                 ns_to_remove = strat(sim, int(self.Nn*VACCINATE_P))
                 ns_to_remove = [n2id[x] for x in ns_to_remove]
 
-                ALPHA = [0.5 if i not in ns_to_remove else 0 for i in range(self.Nn)]
+                ALPHA = [0.5 if i not in ns_to_remove else vaccinate_alpha for i in range(self.Nn)]
 
                 args = dict(self.base_args)
                 args['alpha'] = ALPHA
@@ -505,7 +529,7 @@ class simulation_manager:
     def summarize_params(self):
         # parameters sanity check
         names = "A_deltabeta,A_delta_pairwise,A_beta_pairwise,beta_local,beta".split(",")
-        sq = np.ceil(np.sqrt(len(names)))
+        sq = int(np.ceil(np.sqrt(len(names))))
         plt.figure(figsize=(10,5))
 
         model = self.most_recent_model
@@ -522,7 +546,7 @@ class simulation_manager:
     def summarize_models(self):
         plt.figure(figsize=(20,20))
 
-        nsqrs = np.ceil( np.sqrt(len(self.models)) )
+        nsqrs = int(np.ceil( np.sqrt(len(self.models)) ))
 
         for ki,k in enumerate(self.models):
             plt.subplot(nsqrs, nsqrs, ki+1)
@@ -671,26 +695,36 @@ class simulation_manager:
         row[f'max'] = np.max(ninf)
         
         row['P_sus_inf'] = row['mean'] / row['init_sus']
+        
+        none_k = dict(k)
+        none_k['strat'] = 'none'
+        none_k = fzd(none_k)
 
+        rand_k = dict(k)
+        rand_k['strat'] = 'rand'
+        rand_k = fzd(rand_k)
+
+        # compare to rand for all except none and rand strategies :P
         if k['strat'] not in ['none', 'rand']:
-            none_k = dict(k)
-            none_k['strat'] = 'none'
-            none_k = fzd(none_k)
-
-            rand_k = dict(k)
-            rand_k['strat'] = 'rand'
-            rand_k = fzd(rand_k)
-
-            if none_k in self.models and len(self.models[none_k]):
-                none_info = self.info(none_k)
-
-                row['P_sus_inf_rel_none'] = row['P_sus_inf'] / none_info['P_sus_inf']
-                row['P_sus_inf_rel_none_err'] = (row['stderr'] / row['init_sus']) / none_info['P_sus_inf'] # should I bootstrap?
+            
             if rand_k in self.models and len(self.models[rand_k]):
                 rand_info = self.info(rand_k)                
 
                 row['P_sus_inf_rel_rand'] = row['P_sus_inf'] / rand_info['P_sus_inf']
                 row['P_sus_inf_rel_rand_err'] = (row['stderr'] / row['init_sus']) / rand_info['P_sus_inf'] # should I bootstrap?
+                
+                row['P_sus_inf_rel_rand_BS'] = bootstrap( row, rand_info )
+                
+        # compare to none for all except none strategy :P
+        if k['strat'] not in ['none']:
+
+            if none_k in self.models and len(self.models[none_k]):
+                none_info = self.info(none_k)
+
+                row['P_sus_inf_rel_none'] = row['P_sus_inf'] / none_info['P_sus_inf']
+                row['P_sus_inf_rel_none_err'] = (row['stderr'] / row['init_sus']) / none_info['P_sus_inf'] # should I bootstrap? lol... months later, I say yes. 20m of work, discovering these error bars are totally wrong.
+                
+                row['P_sus_inf_rel_none_BS'] = bootstrap( row, none_info )
 
             
         #if np.sum( np.array(ninf) > row['init_sus'] ) != 0:

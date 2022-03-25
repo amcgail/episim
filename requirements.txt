@@ -1,2 +1,7 @@
 frozendict
 seirsplus
+jupyterlab
+matplotlib
+seaborn
+umap-learn
+node2vec
