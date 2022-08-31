@@ -109,12 +109,16 @@ class temporalNetwork:
             node_ids = self.node_ids
         )
     
-    def to_weighted(self):
+    def to_weighted(self, normalize=False):
         
         nodes = range(len(self.G.nodes))
         wts = Counter([(u,v) for t,u,v in self.edgelist])
         
-        TOTAL_TIME = len(set(self.edgelist[:,0])) # amount of time for which we have data
+        TOTAL_TIME = (
+            len(set(self.edgelist[:,0])) 
+            if normalize else 1
+            # amount of time for which we have data
+        )
         
         edges = [
             (f,t,c / TOTAL_TIME)
